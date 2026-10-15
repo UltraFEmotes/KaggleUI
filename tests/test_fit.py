@@ -36,6 +36,24 @@ def test_vllm_not_on_p100(hw):
     assert "vllm" in f.reasons[0].lower()
 
 
+def test_sglang_runs_and_splits_on_t4s(hw):
+    f = assess(text(5.2, 8, engine="sglang"), hw("t4x2"))
+    assert f.verdict in ("good", "best")
+    assert f.placement == "single"
+    f = assess(text(17.7, 27, engine="sglang"), hw("t4x2"))
+    assert f.placement == "split"
+    assert any("Split across 2 GPUs" in r for r in f.reasons)
+
+
+def test_sglang_not_on_older_gpus_or_tpu(hw):
+    f = assess(text(5, 8, engine="sglang"), hw("p100"))
+    assert f.verdict == "worst"
+    assert "sglang" in f.reasons[0].lower()
+    f = assess(text(2, 1.5, engine="sglang"), hw("tpu"))
+    assert f.verdict == "worst"
+    assert "CUDA GPU" in f.reasons[0]
+
+
 def test_tpu_needs_gpu_for_diffusers(hw):
     f = assess(Candidate(modality="image", engine="diffusers", weights_bytes=int(7 * GB)), hw("tpu"))
     assert f.verdict == "worst"

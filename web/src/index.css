@@ -365,6 +365,7 @@ p { text-wrap: pretty; }
 .model-row:hover .model-logo { border-color: var(--line-2); }
 @container (min-width: 760px) {
   .model-columns { grid-template-columns: minmax(0, 1fr) 84px 96px 168px; align-items: center; gap: 28px; }
+  .model-columns.has-ctx { grid-template-columns: minmax(0, 1fr) 84px 96px 92px 168px; }
   .model-header { display: grid; }
   .model-row .model-stats { display: contents; }
   .model-row .model-fit { margin-left: 0; }

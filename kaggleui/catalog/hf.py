@@ -69,6 +69,32 @@ async def model_info(client: httpx.AsyncClient, repo_id: str, revision: str | No
     return info
 
 
+async def read_bounded_json(client: httpx.AsyncClient, repo_id: str, name: str,
+                            revision: str | None = None) -> dict | None:
+    """Fetch one small metadata file from the Hub without downloading weights."""
+    try:
+        url = f"https://huggingface.co/{repo_id}/resolve/{quote(revision or 'main', safe='')}/{name}"
+        async with client.stream("GET", url, headers=_headers(), follow_redirects=True, timeout=8) as response:
+            if response.status_code != 200:
+                return None
+            chunks, size = [], 0
+            async for block in response.aiter_bytes():
+                size += len(block)
+                if size > 2 * 1024**2:
+                    return None
+                chunks.append(block)
+            text = b"".join(chunks).decode()
+            data = json.loads(text)
+            return data if isinstance(data, dict) else None
+    except (httpx.HTTPError, UnicodeError, ValueError):
+        return None
+
+
+async def config_json(client: httpx.AsyncClient, repo_id: str, revision: str | None = None) -> dict:
+    """The model's config.json only (cheap context-window metadata for catalog rows)."""
+    return await read_bounded_json(client, repo_id, "config.json", revision) or {}
+
+
 async def capability_files(client: httpx.AsyncClient, repo_id: str, revision: str | None = None) -> dict:
     """Fetch only bounded metadata when opening details, never model weights or remote code."""
     import asyncio

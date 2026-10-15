@@ -1,6 +1,6 @@
 import { Brain, Eye, Layers, Wrench, X } from "lucide-react";
 
-import { BRAND_DEFINITIONS, CAPABILITY_FILTERS, type CatalogFiltersState, parameterError } from "../lib/catalogFilters";
+import { BRAND_DEFINITIONS, CAPABILITY_FILTERS, CONTEXT_PRESETS, type CatalogFiltersState, parameterError } from "../lib/catalogFilters";
 import { cx } from "../lib/format";
 import type { CatalogBrand, Modality, SearchResult } from "../lib/types";
 import { Input, Select, Segmented, Toggle } from "./ui";
@@ -53,6 +53,17 @@ export function CatalogFilterPanel({ value, onChange, modality, facets }: Props)
           onClick={() => set(value.min === range.min && value.max === range.max ? { min: "", max: "" } : { min: range.min, max: range.max })}>{range.label}</button>)}</div>
         <label className="mt-3 flex items-center gap-2 text-[12px] text-fg-2"><input className="size-3.5 accent-signal" type="checkbox" checked={value.includeUnknown}
           onChange={e => set({ includeUnknown: e.target.checked })} /> Include unknown parameter counts</label>
+        {modality === "text" && <div className="mt-4">
+          <span className="mb-2 block text-[13px] font-medium">Context window</span>
+          <div className="flex flex-wrap gap-1.5" aria-label="Minimum context window">
+            <button type="button" className="catalog-filter-preset" aria-pressed={value.minCtx === ""}
+              onClick={() => set({ minCtx: "" })}>Any</button>
+            {CONTEXT_PRESETS.map(preset => <button key={preset.value} type="button" className="catalog-filter-preset"
+              aria-pressed={value.minCtx === preset.value}
+              onClick={() => set({ minCtx: value.minCtx === preset.value ? "" : preset.value })}>≥ {preset.label}</button>)}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-fg-3">The shortest context window a model must handle. Models with unknown windows are hidden while this is set; open the list to load more metadata.</p>
+        </div>}
       </fieldset>
       <fieldset className="min-w-0">
         <legend className="mb-2 text-[13px] font-medium">Capabilities</legend>
@@ -93,6 +104,10 @@ export function activeFilters({ value, modality, facets, onChange }: Props) {
   const set = (patch: Partial<CatalogFiltersState>) => onChange({ ...value, ...patch });
   const chips: { label: string; remove: () => void }[] = [];
   if (value.min !== "" || value.max !== "") chips.push({ label: `${value.min || "0"}–${value.max || "∞"}B parameters${value.includeUnknown ? " + unknown" : ""}`, remove: () => set({ min: "", max: "" }) });
+  if (modality === "text" && value.minCtx) {
+    const preset = CONTEXT_PRESETS.find(entry => entry.value === value.minCtx);
+    chips.push({ label: `≥ ${preset?.label ?? value.minCtx} context`, remove: () => set({ minCtx: "" }) });
+  }
   if (modality === "text") for (const cap of CAPABILITY_FILTERS.filter(cap => value.capabilities.includes(cap.id))) {
     chips.push({ label: cap.label, remove: () => set({ capabilities: value.capabilities.filter(id => id !== cap.id) }) });
   }

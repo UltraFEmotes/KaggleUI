@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router";
 import { ProgressBar } from "../components/meters";
 import { Button, CopyButton, Drawer, Empty, SectionTitle, useToast } from "../components/ui";
 import { api } from "../lib/api";
-import { bytes, cx, duration, MODALITY_LABEL } from "../lib/format";
+import { bytes, cx, duration, ENGINE_LABEL, MODALITY_LABEL } from "../lib/format";
 import { useLive, useLogs } from "../lib/live";
 import { ModelLogo } from "../components/ModelLogo";
 import { OptionsForm } from "../components/ModelDetail";
@@ -139,7 +139,7 @@ function DeploymentCard({ d, focus }: { d: Deployment; focus: boolean }) {
           <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-1 text-[12.5px] text-fg-3">
             <span className="font-mono">{d.spec.model.id}</span>
             {d.spec.model.variant && <span className="font-mono">· {d.spec.model.variant}</span>}
-            <span>· {MODALITY_LABEL[d.modality]} on {d.spec.model.engine}</span>
+            <span>· {MODALITY_LABEL[d.modality]} on {ENGINE_LABEL[d.spec.model.engine] ?? d.spec.model.engine}</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

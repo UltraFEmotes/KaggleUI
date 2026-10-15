@@ -10,7 +10,7 @@ import os
 import re
 from pathlib import Path
 
-from ..capabilities import local_profile
+from ..capabilities import context_length, local_profile
 from ..engines.model_support import model_config
 
 SHARD_RE = re.compile(r"-\d{5}-of-\d{5}\.gguf$", re.I)
@@ -130,4 +130,7 @@ def scan(root: Path = Path("/kaggle/input"), max_depth: int = 7) -> list[dict]:
             item["custom_code"] = True
         if item["modality"] == "text":
             item.update(local_profile(item["path"], item["name"]))
+            ctx = context_length(config)
+            if ctx:
+                item["context_length"] = ctx
     return found

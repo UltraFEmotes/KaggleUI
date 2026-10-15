@@ -12,6 +12,7 @@ CAPABILITIES = {"vision", "tools", "reasoning", "embedding"}
 class CatalogFilters:
     min_params: float | None = None
     max_params: float | None = None
+    min_ctx: int | None = None
     capabilities: tuple[str, ...] = ()
     capability_match: str = "all"
     brand: str = ""
@@ -26,6 +27,8 @@ class CatalogFilters:
                 raise ValueError("Parameter limits must be finite, non-negative numbers.")
         if self.min_params is not None and self.max_params is not None and self.min_params > self.max_params:
             raise ValueError("Minimum parameters cannot exceed maximum parameters.")
+        if self.min_ctx is not None and (not math.isfinite(self.min_ctx) or self.min_ctx < 0):
+            raise ValueError("The context minimum must be a non-negative number of tokens.")
         if set(self.capabilities) - CAPABILITIES:
             raise ValueError("Unknown capability filter. Choose vision, tools, reasoning or embedding.")
         if self.capability_match not in ("all", "any"):
@@ -33,8 +36,8 @@ class CatalogFilters:
 
     @property
     def active(self) -> bool:
-        return any((self.min_params is not None, self.max_params is not None, self.capabilities,
-                    self.brand, self.engine, self.hide_gated, self.hide_experimental))
+        return any((self.min_params is not None, self.max_params is not None, self.min_ctx is not None,
+                    self.capabilities, self.brand, self.engine, self.hide_gated, self.hide_experimental))
 
     def matches(self, item: dict) -> bool:
         if self.brand and item["brand"]["id"] != self.brand:
@@ -45,6 +48,10 @@ class CatalogFilters:
             return False
         if self.hide_experimental and item.get("experimental"):
             return False
+        if self.min_ctx is not None:
+            value = item.get("context_length")
+            if not isinstance(value, (int, float)) or value < self.min_ctx:
+                return False
         if self.min_params is not None or self.max_params is not None:
             value = item.get("params")
             if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:

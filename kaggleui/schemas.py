@@ -22,8 +22,8 @@ class ModelRef(BaseModel):
     variant: str | None = None
     """GGUF quant (``Q4_K_M``), Ollama tag, or diffusers dtype variant."""
     engine: str
-    """Engine that runs it: ollama, vllm, transformers, diffusers, diffusers_video, diffusers_world, kokoro,
-    chatterbox, transformers_tts, faster_whisper, transformers_asr, world_recipe, mock."""
+    """Engine that runs it: ollama, vllm, sglang, transformers, diffusers, diffusers_video, diffusers_world,
+    kokoro, chatterbox, transformers_tts, faster_whisper, transformers_asr, world_recipe, mock."""
 
 
 class DeploymentSpec(BaseModel):

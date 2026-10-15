@@ -4,7 +4,7 @@ One notebook cell turns a free Kaggle GPU into a model host. Run it, open the li
 
 - **Model categories:** Text (LLMs), Image, Video, Text-to-speech, Audio generation, Speech-to-text, World models and 3D models. Runner availability is shown separately from catalog discovery.
 - **Live catalog** from Hugging Face and Ollama, plus models attached under `/kaggle/input`. Every model is sized against *this* machine's VRAM, RAM and disk and tagged **Best fit**, **Fits**, **Tight** or **Won't fit**, with the reason. Toggle between **All models** and **Fits this GPU**, sort by **Lowest parameters** or **Highest parameters**, and use **Load more** to browse deeper. Parameter sorting uses the shown variant; unknown counts appear last.
-- **Correct context windows:** each text model shows its true maximum context length — read from model configs and GGUF metadata, with RoPE extensions applied — and the context-length picker offers values up to that maximum (131K for Llama 3.x, 256K for Qwen3, 1.01M for Qwen2.5-1M, and so on).
+- **Correct context windows:** each text model shows its true maximum context length — read from model configs and GGUF metadata, with RoPE extensions applied — right in the catalog list, with a **Context window** filter (≥ 8K … ≥ 1M) to narrow the list, and the context-length picker offers values up to that maximum (131K for Llama 3.x, 256K for Qwen3, 1.01M for Qwen2.5-1M, and so on). In the Studio, each deployment's **Max tokens** slider runs up to the context you launched it with.
 - **Interfaces:** the built-in Studio, Gradio, Open WebUI (text) or ComfyUI (image/video).
 - **Password lock** for the interfaces (generated, toggleable). The control panel always needs your admin token.
 - **APIs:** OpenAI-compatible, Anthropic-compatible and Ollama-compatible endpoints, each toggleable, with an API key.
@@ -60,7 +60,7 @@ Downloads show progress and can be cancelled. `.stop()` stops active download pr
 
 ### Checkpoints with custom code or audio architectures
 
-**Customize → Settings → Allow model custom code** passes `trust_remote_code=True` to Transformers text/TTS/ASR loaders and enables vLLM's equivalent flag. It is off by default: enable it only for repositories whose code you trust, since that Python runs in the notebook. For Hugging Face models, **Model revision** can pin a commit SHA. After a failed load, **Deployments → Configure & retry** lets you change these settings and reuse the cached download.
+**Customize → Settings → Allow model custom code** passes `trust_remote_code=True` to Transformers text/TTS/ASR loaders and enables the same switch on vLLM and SGLang. It is off by default: enable it only for repositories whose code you trust, since that Python runs in the notebook. For Hugging Face models, **Model revision** can pin a commit SHA. After a failed load, **Deployments → Configure & retry** lets you change these settings and reuse the cached download.
 
 MiDashengLM-Gen uses a dedicated audio scene adapter following [the publisher's API](https://huggingface.co/mispeech/midashenglm-gen), including its nested Python modules, extra dependencies and required float32 precision. Enable custom code for this model. It accepts plain scene descriptions or structured `<|caption|>`, `<|asr|>`, `<|speech|>`, `<|music|>`, `<|sfx|>` and `<|env|>` prompts via Studio or `/v1/audio/speech`. The default voice is prompt-controlled; it has no named voice bank. Its Qwen backbone/tokenizer can require additional downloads beyond the checkpoint size.
 
@@ -207,7 +207,7 @@ Submit `POST /v1/worlds` with `model`, `prompt`, and optional `input_reference_b
 
 | Type | Engines |
 |---|---|
-| Text | Ollama (GGUF from Ollama or any HF GGUF repo; splits big models across both T4s), vLLM (experimental on T4), Transformers |
+| Text | Ollama (GGUF from Ollama or any HF GGUF repo; splits big models across both T4s), vLLM (experimental on T4), SGLang (alternative fast runner, experimental, T4+), Transformers. Pick the engine when launching the model |
 | Text on a TPU session | vLLM with the TPU backend (experimental; one model sharded across all chips) |
 | Image | Diffusers (SD 1.5/2/XL/3.5, FLUX with 4-bit + offload…), or ComfyUI |
 | Video | Diffusers (Wan 2.1/2.2, CogVideoX, LTX-Video…), slow on T4 |
@@ -215,7 +215,7 @@ Submit `POST /v1/worlds` with `model`, `prompt`, and optional `input_reference_b
 | Speech-to-text | faster-whisper, Transformers ASR |
 | World | Oasis, Matrix-Game, LingBot, Cosmos, HunyuanWorld 1.0, HY-WorldPlay 5B and HY-World 2.0. Some generate video; the Tencent scene runners export 3D assets. Check the model’s GPU requirements before deploying |
 
-Heavy or conflicting stacks (vLLM, Open WebUI, Chatterbox) install into isolated `uv` environments, so they don't break Kaggle's preinstalled PyTorch. Weights go to the ephemeral disk, not `/kaggle/working`.
+Heavy or conflicting stacks (vLLM, SGLang, Open WebUI, Chatterbox) install into isolated `uv` environments, so they don't break Kaggle's preinstalled PyTorch. Weights go to the ephemeral disk, not `/kaggle/working`.
 
 ## Develop locally (no GPU needed)
 

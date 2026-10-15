@@ -79,6 +79,7 @@ export const api = {
     live?: boolean;
     min_params?: number;
     max_params?: number;
+    min_ctx?: number;
     capabilities?: string[];
     capability_match?: "all" | "any";
     brand?: string;
@@ -97,7 +98,7 @@ export const api = {
       limit: String(p.limit ?? 40),
       live: String(p.live ?? true),
     });
-    for (const key of ["min_params", "max_params"] as const) if (p[key] !== undefined) qs.set(key, String(p[key]));
+    for (const key of ["min_params", "max_params", "min_ctx"] as const) if (p[key] !== undefined) qs.set(key, String(p[key]));
     if (p.capabilities?.length) qs.set("capabilities", p.capabilities.join(","));
     if (p.capability_match) qs.set("capability_match", p.capability_match);
     if (p.brand) qs.set("brand", p.brand);

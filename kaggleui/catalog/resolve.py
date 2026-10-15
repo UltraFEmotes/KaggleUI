@@ -23,6 +23,7 @@ PIPELINE_TO_MODALITY.update({"image-to-image": "image", "text2text-generation": 
 ENGINE_LABELS = {
     "ollama": "Ollama (llama.cpp)",
     "vllm": "vLLM",
+    "sglang": "SGLang",
     "transformers": "Transformers",
     "diffusers": "Diffusers",
     "diffusers_video": "Diffusers (video)",
@@ -39,7 +40,7 @@ ENGINE_LABELS = {
 
 # Engines each modality can use, in order of preference (used for the engine picker in the UI).
 MODALITY_ENGINES = {
-    "text": ["ollama", "vllm", "transformers"],
+    "text": ["ollama", "vllm", "sglang", "transformers"],
     "image": ["diffusers"],
     "video": ["diffusers_video"],
     "tts": ["kokoro", "chatterbox", "transformers_tts"],

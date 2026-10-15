@@ -90,6 +90,14 @@ export const SOURCE_LABEL: Record<string, string> = {
   attached: "Attached",
 };
 
+/** Display names for the engines the UI lets you pick between. */
+export const ENGINE_LABEL: Record<string, string> = {
+  ollama: "Ollama (llama.cpp)",
+  vllm: "vLLM",
+  sglang: "SGLang",
+  transformers: "Transformers",
+};
+
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
 }

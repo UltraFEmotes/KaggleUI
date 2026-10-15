@@ -32,11 +32,11 @@ DTYPE_BYTES: dict[str, float] = {
 FLOAT_DTYPES = {"F64", "F32", "BF16", "F16", "FP16"}
 
 # Engines that can spread one model over several GPUs.
-SPLIT_ENGINES = {"ollama", "vllm", "transformers"}
+SPLIT_ENGINES = {"ollama", "vllm", "sglang", "transformers"}
 # Engines that can keep part of the model in system RAM (slower).
 OFFLOAD_ENGINES = {"diffusers", "diffusers_video", "diffusers_world", "transformers", "transformers_tts"}
 # Minimum CUDA compute capability (sm) per engine.
-ENGINE_MIN_SM = {"vllm": 70, "diffusers_world": 80}
+ENGINE_MIN_SM = {"vllm": 70, "sglang": 75, "diffusers_world": 80}
 # Engines that are fine on CPU for small models.
 CPU_FRIENDLY = {"ollama", "faster_whisper", "kokoro", "transformers_asr", "transformers_tts", "mock"}
 # Engines with a TPU path. vLLM's TPU backend shards one model across every chip in the slice.

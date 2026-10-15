@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kaggleui"
-version = "0.2.5"
+version = "0.2.7"
 description = "One-cell control panel for hosting AI models (text, image, video, speech, world) on Kaggle's free GPUs."
 readme = "README.md"
 license = "MIT"

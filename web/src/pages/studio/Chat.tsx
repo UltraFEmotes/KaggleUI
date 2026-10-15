@@ -2,7 +2,7 @@ import { Brain, ChevronDown, ImagePlus, Send, SlidersHorizontal, Square, Trash2,
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, Field, Select, Slider, Textarea } from "../../components/ui";
-import { cx } from "../../lib/format";
+import { cx, tokens } from "../../lib/format";
 import { renderMarkdown } from "../../lib/markdown";
 import type { StudioModel } from "../../lib/types";
 import { effortLabel } from "../../lib/capabilities";
@@ -138,6 +138,10 @@ export default function ChatStudio({ model }: { model: StudioModel }) {
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2048);
   const [effort, setEffort] = useState<Effort>("default");
+  // The reply cap can go all the way to the context the model was launched with; prompt and
+  // history live in that same window, so the engines reject requests where both don't fit.
+  const ctxCap = Math.max(256, Math.round(Number(model.options?.ctx) || 8192));
+  const tokenStep = ctxCap <= 32768 ? 64 : ctxCap <= 131072 ? 256 : 1024;
   const scroller = useRef<HTMLDivElement>(null);
   const vision = model.capabilities.includes("vision");
   const thinking = model.reasoning?.supported || model.capabilities.some(cap => ["reasoning", "thinking"].includes(cap));
@@ -147,6 +151,11 @@ export default function ChatStudio({ model }: { model: StudioModel }) {
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [messages]);
+
+  // Switching to a model with a smaller window pulls the reply cap down with it.
+  useEffect(() => {
+    setMaxTokens((value) => Math.min(value, ctxCap));
+  }, [ctxCap]);
 
   function submit() {
     const text = input.trim();
@@ -225,7 +234,13 @@ export default function ChatStudio({ model }: { model: StudioModel }) {
             <Textarea rows={2} value={system} onChange={(e) => setSystem(e.target.value)} placeholder="You are a helpful assistant." />
           </Field>
           <Slider label="Temperature" value={temperature} min={0} max={2} step={0.05} onChange={setTemperature} format={(v) => v.toFixed(2)} />
-          <Slider label="Max tokens" value={maxTokens} min={64} max={16384} step={64} onChange={setMaxTokens} />
+          <div>
+            <Slider label="Max tokens" value={maxTokens} min={64} max={ctxCap} step={tokenStep} onChange={setMaxTokens} format={tokens} />
+            <p className="mt-1 text-[11px] leading-relaxed text-fg-3">
+              Reply length cap, up to the {tokens(ctxCap)} context window this model was launched with.
+              Prompt and history share that window, so leave room for them on long conversations.
+            </p>
+          </div>
           <Field label="Reasoning effort" hint={thinking ? model.reasoning?.efforts.length ? "Available controls detected for this model and runner. Auto keeps the model default." : "This model provides no verified effort controls. Its default reasoning behavior is used." : "No reasoning controls detected for this model."}>
             <Select value={activeEffort} onChange={(e) => setEffort(e.target.value)} disabled={effortOptions.length < 2}>
               {effortOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}

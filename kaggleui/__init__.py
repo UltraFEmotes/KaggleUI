@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "0.2.5"
+__version__ = "0.2.7"
 
 
 def launch(preset=None, *, block: bool = True, tunnel: str | None = None, port: int | None = None):

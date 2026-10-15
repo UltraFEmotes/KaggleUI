@@ -80,7 +80,8 @@ class CatalogService:
                 items[item["key"]] = item
             elif (existing.get("curated") and not item.get("curated")) or modality == "world":
                 # Keep curated settings but take live popularity numbers.
-                for k in ("downloads", "likes", "updated", "capabilities", "params", "library", "pipeline_tag"):
+                for k in ("downloads", "likes", "updated", "capabilities", "params", "library", "pipeline_tag",
+                          "context_length"):
                     if k == "capabilities":
                         existing[k] = sorted(set(existing.get(k, [])) | set(item.get(k, [])))
                         continue
@@ -408,31 +409,67 @@ class CatalogService:
                 "experimental": bool(f.get("experimental")), "curated": False, "options": f.get("options", {}),
                 "recipe": f.get("recipe"), "url": f.get("url"), "attached": True,
                 "min_sm": f.get("min_sm"), "min_vram": f.get("min_vram"),
-                **{key: f[key] for key in ("capabilities", "reasoning", "custom_code") if key in f},
+                **{key: f[key] for key in ("capabilities", "reasoning", "custom_code", "context_length") if key in f},
             })
         return out
 
     # -- enrichment ---------------------------------------------------------------------------
     async def _enrich(self, items: list[dict]) -> None:
-        """Fill in exact sizes: Ollama registry manifests, HF file listings for non-text models."""
+        """Fill in exact sizes (Ollama manifests, HF file listings) and context windows (HF config.json).
+
+        Context reads are one tiny cached request per model, so catalog rows can show and filter by
+        the true maximum window without opening every model's detail page.
+        """
         jobs: list = []  # (callable, arg) so nothing beyond the cap is ever created
+        ctx: list = []
         for it in items:
             if it["source"] == "ollama":
                 v = next((v for v in it["variants"] if v["id"] == it["variant"]), None)
                 if v and not v.get("exact"):
                     jobs.append((self._ollama_variant_size, v))
+                if not it.get("context_length"):
+                    ctx.append((self._ollama_context, it))
             elif (it["source"] == "hf" and it.get("engine") and it.get("size") is None
                   and it["modality"] != "text"):
                 jobs.append((self._hf_sizes, it))
-        if jobs:
+            elif (it["source"] == "hf" and it.get("engine") and it["modality"] == "text"
+                  and not it.get("context_length")):
+                ctx.append((self._hf_context, it))
+        for batch, cap in ((jobs, 16), (ctx, 64)):
+            if not batch:
+                continue
             try:
-                await asyncio.wait_for(asyncio.gather(*(fn(arg) for fn, arg in jobs[:16]), return_exceptions=True), timeout=6)
+                await asyncio.wait_for(asyncio.gather(*(fn(arg) for fn, arg in batch[:cap]), return_exceptions=True),
+                                       timeout=6)
             except asyncio.TimeoutError:
                 pass  # keep estimates; exact metadata remains cached for the next request
         for it in items:
             if it["source"] == "ollama" and it["variants"]:
                 v = next((v for v in it["variants"] if v["id"] == it["variant"]), it["variants"][0])
                 it["size"], it["params"] = v.get("size"), v.get("params") or it.get("params")
+
+    async def _hf_context(self, it: dict) -> None:
+        revision = (it.get("options") or {}).get("revision")
+
+        async def fetch() -> dict:
+            async with self._sem:
+                return await hf.config_json(self.client, it["id"], revision=revision)
+
+        config = await self._cached(f"hf-config:{it['id']}:{revision or 'main'}", 6 * 3600, fetch)
+        ctx = context_length(config)
+        if ctx:
+            it["context_length"] = ctx
+
+    async def _ollama_context(self, it: dict) -> None:
+        async def fetch() -> list[dict]:
+            async with self._sem:
+                return await ollama.tags(self.client, it["id"])
+
+        # Same cache key as the detail view, so opening a model warms the list (and vice versa).
+        tags = await self._cached(f"ollama-tags:{it['id']}", 3600, fetch)
+        windows = [w for w in (ollama.parse_context(t.get("context")) for t in tags) if w]
+        if windows:
+            it["context_length"] = max(windows)
 
     async def _ollama_variant_size(self, v: dict) -> None:
         name, tag = ollama.split_ref(v["ref"])

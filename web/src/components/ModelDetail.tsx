@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 
 import { api } from "../lib/api";
-import { bytes, cx, memoryPool, params, tokens } from "../lib/format";
+import { bytes, cx, ENGINE_LABEL, memoryPool, params, tokens } from "../lib/format";
 import { useLive } from "../lib/live";
 import type { CatalogItem, DeploymentSpec, Variant } from "../lib/types";
 import { FitGauge } from "./meters";
@@ -69,6 +69,17 @@ function EngineOptions({
             </Select>
           </Field>
         )}
+        {item.engine === "sglang" && (
+          <Field label="GPU memory use" hint="Fraction of VRAM SGLang reserves for weights and the KV cache.">
+            <Select value={String(options.mem_fraction_static ?? 0.88)} onChange={(e) => set("mem_fraction_static", Number(e.target.value))}>
+              {[0.7, 0.8, 0.85, 0.88, 0.9, 0.95].map((v) => (
+                <option key={v} value={v}>
+                  {Math.round(v * 100)}%
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
       </div>
     );
   }
@@ -123,7 +134,7 @@ function EngineOptions({
 
 export function OptionsForm(props: Parameters<typeof EngineOptions>[0]) {
   const { item, options, onChange } = props;
-  const customCode = ["vllm", "transformers", "transformers_tts", "transformers_audio", "transformers_asr"].includes(item.engine ?? "");
+  const customCode = ["vllm", "sglang", "transformers", "transformers_tts", "transformers_audio", "transformers_asr"].includes(item.engine ?? "");
   return <div className="space-y-4">
     <EngineOptions {...props} />
     {customCode && <div className="space-y-3 border-t border-line pt-4">
@@ -175,7 +186,8 @@ export function ModelDetail({
   onImport?: (url: string) => void;
 }) {
   const { overview } = useLive();
-  const devices = overview ? memoryPool(overview.system).devices : [];
+  const pool = overview ? memoryPool(overview.system) : null;
+  const devices = pool?.devices ?? [];
   const canDetail = base.source === "hf" || base.source === "ollama";
   const detail = useQuery({
     queryKey: ["detail", base.key],
@@ -200,9 +212,10 @@ export function ModelDetail({
   }, [detail.data]);
 
   const engines = useMemo(() => {
-    if (item.modality === "text" && item.source === "hf" && item.engine !== "ollama") return ["vllm", "transformers"];
+    if (item.modality === "text" && item.source === "hf" && item.engine !== "ollama")
+      return pool?.tpu ? ["vllm", "transformers"] : ["vllm", "sglang", "transformers"];
     return item.engine ? [item.engine] : [];
-  }, [item]);
+  }, [item, pool?.tpu]);
 
   const picked = item.variants.find((v) => v.id === variant);
   const choice: ModelChoice | null = item.spec
@@ -300,11 +313,11 @@ export function ModelDetail({
         )}
 
         {engines.length > 1 && (
-          <Field label="Engine" hint="vLLM is fastest on T4s but experimental; Transformers is the safe fallback.">
+          <Field label="Engine" hint="vLLM and SGLang are the fast runners (experimental on T4s); Transformers is the safe fallback.">
             <Select value={engine ?? ""} onChange={(e) => setEngine(e.target.value)}>
               {engines.map((e) => (
                 <option key={e} value={e}>
-                  {e === "vllm" ? "vLLM" : "Transformers"}
+                  {ENGINE_LABEL[e] ?? e}
                 </option>
               ))}
             </Select>

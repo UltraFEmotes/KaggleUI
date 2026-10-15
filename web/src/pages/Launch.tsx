@@ -24,7 +24,7 @@ import { ModelDetail, type ModelChoice } from "../components/ModelDetail";
 import { AccessForm, ApiForm, ExposurePicker, OptionCard, StreamingNote, type ApiState } from "../components/settings";
 import { Button, Drawer, SectionTitle, Toggle, useToast } from "../components/ui";
 import { api } from "../lib/api";
-import { bytes, cx, memoryPool, MODALITY_LABEL } from "../lib/format";
+import { bytes, cx, ENGINE_LABEL, memoryPool, MODALITY_LABEL } from "../lib/format";
 import { useLive } from "../lib/live";
 import type { CatalogItem, DeploymentSpec, Modality, TunnelProvider } from "../lib/types";
 
@@ -306,7 +306,7 @@ export default function Launch() {
           <SheetRow label="Type">{MODALITY_LABEL[modality]}</SheetRow>
           <SheetRow label="Model">{choice ? choice.item.name : <span className="text-fg-3">not chosen</span>}</SheetRow>
           {choice?.spec.model.variant && <SheetRow label="Variant">{choice.spec.model.variant}</SheetRow>}
-          {choice && <SheetRow label="Engine">{choice.item.engine_label ?? choice.spec.model.engine}</SheetRow>}
+          {choice && <SheetRow label="Engine">{ENGINE_LABEL[choice.spec.model.engine ?? ""] ?? choice.item.engine_label ?? choice.spec.model.engine}</SheetRow>}
           {choice && (
             <div className="border-b border-dashed border-line py-3">
               <div className="mb-2 flex items-baseline justify-between">

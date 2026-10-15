@@ -5,9 +5,9 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from kaggleui.schemas import Settings
 from kaggleui.server.app import create_app
 from kaggleui.server.state import AppState
-from kaggleui.schemas import Settings
 
 
 @pytest.fixture

@@ -24,6 +24,10 @@ async def deploy(spec: DeploymentSpec, ctx: EngineContext, *, mock: bool) -> tup
         from . import vllm
 
         return await vllm.deploy(spec, ctx)
+    if engine == "sglang":
+        from . import sglang
+
+        return await sglang.deploy(spec, ctx)
     if engine == "world_recipe":
         from . import world_engine
 

@@ -132,9 +132,9 @@ export function ModelCard({
   );
 }
 
-function ModelRow({ item, selected, onOpen }: { item: CatalogItem; selected: boolean; onOpen: () => void }) {
+function ModelRow({ item, selected, onOpen, showContext }: { item: CatalogItem; selected: boolean; onOpen: () => void; showContext: boolean }) {
   return (
-    <button type="button" className="model-row model-columns" onClick={onOpen} aria-pressed={selected}>
+    <button type="button" className={cx("model-row model-columns", showContext && "has-ctx")} onClick={onOpen} aria-pressed={selected}>
       <div className="flex min-w-0 items-start gap-3.5">
         <ModelLogo id={item.id} name={item.name} source={item.source} className="mt-px" />
         <div className="min-w-0">
@@ -161,6 +161,14 @@ function ModelRow({ item, selected, onOpen }: { item: CatalogItem; selected: boo
           <span className="block font-mono text-[13px] text-fg-2">{bytes(item.size)}</span>
           <span className="text-[11.5px] text-fg-3 @[760px]:hidden">Download</span>
         </div>
+        {showContext && (
+          <div>
+            <span className="block font-mono text-[13px] text-fg-2" title={item.context_length ? `${item.context_length.toLocaleString()} tokens` : undefined}>
+              {tokens(item.context_length) || "—"}
+            </span>
+            <span className="text-[11.5px] text-fg-3 @[760px]:hidden">Context</span>
+          </div>
+        )}
         <div className="model-fit min-w-[150px]">
           {item.engine ? (
             <>
@@ -426,14 +434,14 @@ export function ModelBrowser({
       ) : (
         <div className={cx(view === "grid" ? "grid gap-3 @xl:grid-cols-2 @5xl:grid-cols-3" : "panel overflow-hidden", query.isPlaceholderData && "opacity-60")} aria-busy={query.isFetching}>
           {view === "list" && (
-            <div className="model-header model-columns border-b border-line px-5 py-2.5 text-[12px] font-medium text-fg-3" aria-hidden="true">
-              <span>Model</span><span>Params</span><span>Download</span><span>{modality === "world" ? "Support / GPU fit" : pool?.tpu ? "Fit on this TPU · HBM" : "Fit on this GPU · VRAM"}</span>
+            <div className={cx("model-header model-columns border-b border-line px-5 py-2.5 text-[12px] font-medium text-fg-3", modality === "text" && "has-ctx")} aria-hidden="true">
+              <span>Model</span><span>Params</span><span>Download</span>{modality === "text" && <span>Context</span>}<span>{modality === "world" ? "Support / GPU fit" : pool?.tpu ? "Fit on this TPU · HBM" : "Fit on this GPU · VRAM"}</span>
             </div>
           )}
           {query.data?.items.map((it) => (
             view === "grid"
               ? <ModelCard key={it.key} item={it} devices={devices} selected={selectedKey === it.key} onOpen={() => onOpen(it)} />
-              : <ModelRow key={it.key} item={it} selected={selectedKey === it.key} onOpen={() => onOpen(it)} />
+              : <ModelRow key={it.key} item={it} selected={selectedKey === it.key} onOpen={() => onOpen(it)} showContext={modality === "text"} />
           ))}
         </div>
       )}

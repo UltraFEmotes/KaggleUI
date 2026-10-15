@@ -79,6 +79,13 @@ def test_resolver():
     assert r.engine == "transformers_tts" and r.experimental
 
 
+def test_sglang_is_a_selectable_text_engine():
+    from kaggleui.catalog.resolve import ENGINE_LABELS, MODALITY_ENGINES
+
+    assert ENGINE_LABELS["sglang"] == "SGLang"
+    assert MODALITY_ENGINES["text"] == ["ollama", "vllm", "sglang", "transformers"]
+
+
 def test_context_length_reads_real_configs():
     assert context_length(None) is None
     assert context_length({"max_position_embeddings": 32768}) == 32768
@@ -118,6 +125,15 @@ def test_attached_scan(tmp_path):
     assert found["text"]["engine"] == "ollama" and found["text"]["size"] == 10
     assert found["image"]["engine"] == "diffusers" and found["image"]["size"] == 20
     assert found["stt"]["engine"] == "transformers_asr"
+
+
+def test_attached_text_models_report_their_context_window(tmp_path):
+    d = tmp_path / "qwen"
+    d.mkdir()
+    (d / "config.json").write_text('{"architectures": ["Qwen2ForCausalLM"], "max_position_embeddings": 32768}')
+    (d / "model.safetensors").write_bytes(b"x" * 10)
+    found = {f["modality"]: f for f in scan(tmp_path)}
+    assert found["text"]["context_length"] == 32768
 
 
 def test_ollama_effective_param_sizes():

@@ -304,14 +304,14 @@ def create_app(state: AppState) -> FastAPI:
     async def catalog_search(request: Request, modality: str = "text", q: str = "", source: str = "all",
                              sort: str = "recommended", limit: int = 40, show_unsupported: bool | None = None,
                              fit: str = "all", live: bool = True, min_params: float | None = None,
-                             max_params: float | None = None, capabilities: str = "", capability_match: str = "all",
-                             brand: str = "", engine: str = "", include_unknown: bool = False,
+                             max_params: float | None = None, min_ctx: int | None = None, capabilities: str = "",
+                             capability_match: str = "all", brand: str = "", engine: str = "", include_unknown: bool = False,
                              hide_gated: bool = False, hide_experimental: bool = False):
         require_admin(request)
         if modality not in MODALITIES:
             raise HTTPException(400, "unknown modality")
         try:
-            filters = CatalogFilters(min_params=min_params, max_params=max_params,
+            filters = CatalogFilters(min_params=min_params, max_params=max_params, min_ctx=min_ctx,
                                      capabilities=tuple(sorted({cap.strip().lower() for cap in capabilities.split(",") if cap.strip()})),
                                      capability_match=capability_match, brand=brand.strip().lower(), engine=engine.strip(),
                                      include_unknown=include_unknown, hide_gated=hide_gated, hide_experimental=hide_experimental)

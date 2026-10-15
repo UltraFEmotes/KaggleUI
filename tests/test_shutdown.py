@@ -153,9 +153,9 @@ def test_stale_state_does_not_stop_unrelated_process(paths):
 async def test_retained_tunnel_is_adopted_and_full_stop_closes_it(paths, monkeypatch):
     from unittest.mock import AsyncMock
 
+    from kaggleui.server.auth import Auth
     from kaggleui.tunnels import manager
     from kaggleui.tunnels.persistent import read_record
-    from kaggleui.server.auth import Auth
 
     # A real child writes to the same kind of regular log file as cloudflared.
     executable = paths.bin / "fake-cloudflared"
