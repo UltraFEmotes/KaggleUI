@@ -11,7 +11,7 @@ import asyncio
 
 import httpx
 
-from ..capabilities import local_profile
+from ..capabilities import context_length, local_profile
 from ..catalog import hf
 from ..proc import ManagedProcess
 from ..schemas import DeploymentSpec
@@ -40,10 +40,16 @@ async def deploy(spec: DeploymentSpec, ctx: EngineContext) -> tuple[OpenAIUpstre
     port = free_port()
     opts = spec.options
     detected = local_profile(path, spec.model.id)
+    max_len = int(opts.get("ctx") or 8192)
+    limit = context_length(model_config(path))
+    if limit and max_len > limit:
+        # SGLang refuses a context longer than the model's window.
+        ctx.log(f"Context length {max_len} exceeds this model's maximum; using {limit}")
+        max_len = limit
     sm = ctx.hw.min_sm or 0
     cmd = [py, "-m", "sglang.launch_server", "--model-path", path,
            "--served-model-name", ctx.served_name, "--host", "127.0.0.1", "--port", str(port),
-           "--context-length", str(int(opts.get("ctx") or 8192)),
+           "--context-length", str(max_len),
            "--tp-size", str(tp),
            "--dtype", str(opts.get("dtype") or ("half" if sm < 80 else "auto")),
            "--mem-fraction-static", str(float(opts.get("mem_fraction_static") or 0.88))]

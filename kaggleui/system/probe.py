@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import random
 import re
@@ -282,10 +283,22 @@ class Probe:
         return gpus
 
     @staticmethod
-    def _has_tpu() -> bool:
+    def _tpu_devices() -> list[Path]:
+        """Chip device nodes: ``/dev/accel*`` up to v4; v5e and newer expose numbered ``/dev/vfio`` groups."""
+        dev = Path("/dev")
+        if not dev.is_dir():
+            return []
+        accel = sorted(dev.glob("accel*"))
+        if accel:
+            return accel
+        # vfio groups can belong to any passthrough device, so only count them on a TPU image (libtpu).
+        vfio = sorted(p for p in (dev / "vfio").glob("*") if p.name.isdigit()) if (dev / "vfio").is_dir() else []
+        return vfio if vfio and importlib.util.find_spec("libtpu") else []
+
+    def _has_tpu(self) -> bool:
         if any(k.startswith("TPU_") for k in os.environ) or "COLAB_TPU_ADDR" in os.environ:
             return True
-        return any(Path("/dev").glob("accel*")) if Path("/dev").exists() else False
+        return bool(self._tpu_devices())
 
     @staticmethod
     def _tpu_type() -> tuple[str | None, int | None]:
@@ -305,7 +318,9 @@ class Probe:
         if not self._has_tpu():
             return []
         version, typed_chips = self._tpu_type()
-        devices = sorted(Path("/dev").glob("accel*")) if Path("/dev").is_dir() else []
+        devices = self._tpu_devices()
+        if not version and devices and devices[0].parent.name == "vfio":
+            version = "v5e"  # Kaggle's vfio-based TPU; older v3-8 sessions use /dev/accel*
         chips = len(devices) or typed_chips or (8 if "COLAB_TPU_ADDR" in os.environ else 1)
         hbm = TPU_HBM_GIB.get(version or "", 16) * GiB
         name = f"TPU {version} chip" if version else "TPU chip"

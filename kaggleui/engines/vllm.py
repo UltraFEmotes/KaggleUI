@@ -6,7 +6,7 @@ import asyncio
 
 import httpx
 
-from ..capabilities import local_profile
+from ..capabilities import context_length, local_profile
 from ..catalog import hf
 from ..proc import ManagedProcess
 from ..schemas import DeploymentSpec
@@ -16,6 +16,19 @@ from .context import DeployError, EngineContext
 from .download import hf_download, repo_files
 from .install import ensure_venv
 from .model_support import model_config
+
+
+def tpu_parallel(chips: int, config: dict) -> int:
+    """Largest chip count (halving from all of them) that evenly divides the attention heads.
+
+    vLLM rejects a tensor-parallel size that doesn't divide them (e.g. 28 heads across 8 chips).
+    """
+    text = config.get("text_config")
+    heads = (text if isinstance(text, dict) else config).get("num_attention_heads")
+    tp = max(chips, 1)
+    while tp > 1 and isinstance(heads, int) and heads % tp:
+        tp //= 2
+    return tp
 
 
 async def deploy(spec: DeploymentSpec, ctx: EngineContext) -> tuple[OpenAIUpstream, dict]:
@@ -35,7 +48,10 @@ async def deploy(spec: DeploymentSpec, ctx: EngineContext) -> tuple[OpenAIUpstre
     if tpu:
         # vllm-tpu bundles tpu-inference (the TPU backend) for a matching torch; keep it isolated like vLLM.
         py = await ensure_venv(ctx, "vllm-tpu", ["vllm-tpu"], python="3.11", label="vLLM TPU")
-        tp = max(1, len(ctx.hw.tpus))
+        tp = tpu_parallel(len(ctx.hw.tpus), model_config(path))
+        if tp < len(ctx.hw.tpus):
+            ctx.log(f"Sharding across {tp} of {len(ctx.hw.tpus)} TPU chips (the model's attention heads "
+                    f"don't divide evenly across all of them)")
         extra_env: dict[str, str] | None = {"PJRT_DEVICE": "TPU"}
         ready_timeout = 5400  # first start compiles XLA graphs, which can take well over 30 minutes
     else:
@@ -46,9 +62,14 @@ async def deploy(spec: DeploymentSpec, ctx: EngineContext) -> tuple[OpenAIUpstre
     port = free_port()
     opts = spec.options
     detected = local_profile(path, spec.model.id)
+    max_len = int(opts.get("ctx") or 8192)
+    limit = context_length(model_config(path))
+    if limit and max_len > limit:
+        ctx.log(f"Context length {max_len} exceeds this model's maximum; using {limit}")
+        max_len = limit
     cmd = [py, "-m", "vllm.entrypoints.openai.api_server", "--model", path,
            "--served-model-name", ctx.served_name, "--host", "127.0.0.1", "--port", str(port),
-           "--max-model-len", str(int(opts.get("ctx") or 8192)),
+           "--max-model-len", str(max_len),
            "--tensor-parallel-size", str(tp)]
     if tpu:
         # TPUs are bf16-first and the TPU scheduler manages HBM across the sharded chips itself.
