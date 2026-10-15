@@ -140,6 +140,15 @@ async def _pull(base: str, ref: str, ctx: EngineContext) -> None:
     ctx.progress("downloading", 1.0, f"Pulled {ref}")
 
 
+def model_context(show: dict) -> int | None:
+    """Trained context window from ``/api/show`` (``model_info["<arch>.context_length"]``)."""
+    info = show.get("model_info") or {}
+    value = info.get(f"{info.get('general.architecture')}.context_length")
+    if value is None:
+        value = next((v for k, v in info.items() if k.endswith(".context_length")), None)
+    return int(value) if isinstance(value, int | float) and value > 0 else None
+
+
 async def deploy(spec: DeploymentSpec, ctx: EngineContext) -> tuple[OpenAIUpstream, dict]:
     server = OllamaServer.get()
     base = await server.ensure(ctx)
@@ -151,6 +160,11 @@ async def deploy(spec: DeploymentSpec, ctx: EngineContext) -> tuple[OpenAIUpstre
     ctx.progress("loading", None, "Creating model with your settings")
     async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=1800, write=600, pool=10)) as c:
         if ref:
+            r = await c.post(f"{base}/api/show", json={"model": ref})
+            limit = model_context(r.json()) if r.status_code == 200 else None
+            if limit and num_ctx > limit:
+                ctx.log(f"Context length {num_ctx} exceeds this model's maximum; using {limit}")
+                num_ctx = limit
             r = await c.post(f"{base}/api/create", json={
                 "model": alias, "from": ref, "parameters": {"num_ctx": num_ctx}, "stream": False})
             if r.status_code != 200:

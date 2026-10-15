@@ -125,3 +125,11 @@ def test_ollama_effective_param_sizes():
 
     it = CatalogService(lambda: None)._from_ollama({"name": "gemma4", "sizes": ["e4b", "12b"], "downloads": 1})
     assert [v["params"] for v in it["variants"]] == [4e9, 12e9]
+
+
+def test_ollama_show_context():
+    from kaggleui.engines.ollama import model_context
+
+    assert model_context({"model_info": {"general.architecture": "qwen3", "qwen3.context_length": 40960}}) == 40960
+    assert model_context({"model_info": {"llama.context_length": 131072}}) == 131072
+    assert model_context({}) is None

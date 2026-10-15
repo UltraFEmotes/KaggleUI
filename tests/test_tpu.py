@@ -78,3 +78,27 @@ def test_model_too_big_for_tpu_slice(hw):
                          attached=True), hw("tpu"))
     assert f.verdict == "worst"
     assert "HBM" in f.reasons[0]
+
+
+def test_tpu_detected_from_vfio_devices(paths, monkeypatch):
+    # Kaggle's v5e exposes chips as numbered /dev/vfio groups and may not set TPU_* variables.
+    _clean_env(monkeypatch)
+    from pathlib import Path
+
+    monkeypatch.setattr(Probe, "_gpus", lambda self: [])
+    monkeypatch.setattr(Probe, "_tpu_devices", staticmethod(lambda: [Path(f"/dev/vfio/{i}") for i in range(8)]))
+    hw = Probe(paths).snapshot()
+    assert hw.accelerator == "tpu"
+    assert hw.accelerator_label == "TPU v5e ×8"
+    assert hw.tpus[0].vram_total == 16 * GiB
+
+
+def test_tpu_parallel_divides_attention_heads():
+    from kaggleui.engines.vllm import tpu_parallel
+
+    assert tpu_parallel(8, {"num_attention_heads": 32}) == 8
+    assert tpu_parallel(8, {"num_attention_heads": 28}) == 4  # Qwen2.5-7B
+    assert tpu_parallel(8, {"num_attention_heads": 14}) == 2  # Qwen2.5-0.5B
+    assert tpu_parallel(8, {"num_attention_heads": 9}) == 1  # SmolLM2-135M (the TPU selftest model)
+    assert tpu_parallel(8, {"text_config": {"num_attention_heads": 16}}) == 8
+    assert tpu_parallel(8, {}) == 8
